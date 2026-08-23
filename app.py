@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import datetime
 import os
@@ -38,7 +38,8 @@ maquinas, areas, tecnicos = obtener_opciones()
 st.title("📱 Reporte Diario de Daños")
 st.markdown("Registra las fallas de planta de forma rápida desde el celular.")
 
-with st.form("form_reporte_daño", clear_form=True):
+# CORREGIDO: clear_on_submit en lugar de clear_form
+with st.form("form_reporte_daño", clear_on_submit=True):
     fecha = st.date_input("Fecha del reporte", datetime.date.today())
     
     col1, col2 = st.columns(2)
