@@ -13,16 +13,16 @@ else:
 
 def obtener_opciones():
     try:
-        xls = pd.ExcelFile(EXCEL_FILE)
+        xls = pd.ExcelFile(EXCEL_FILE, engine='openpyxl')
         
         if "MAQUINAS" in xls.sheet_names:
-            df_maq = pd.read_excel(EXCEL_FILE, sheet_name="MAQUINAS").dropna(subset=['MAQUINAS'])
+            df_maq = pd.read_excel(EXCEL_FILE, sheet_name="MAQUINAS", engine='openpyxl').dropna(subset=['MAQUINAS'])
             maquinas = df_maq['MAQUINAS'].tolist()
         else:
             maquinas = ["WNT", "SELCO2", "HOMAG400", "VITAP"]
 
         if "TECNICOS" in xls.sheet_names:
-            df_tec = pd.read_excel(EXCEL_FILE, sheet_name="TECNICOS")
+            df_tec = pd.read_excel(EXCEL_FILE, sheet_name="TECNICOS", engine='openpyxl')
             tecnicos = df_tec['TECNICO1'].dropna().tolist()
         else:
             tecnicos = ["WILLIAN DIAZ", "BAYRON LOPEZ", "DAVID PANTOJA"]
@@ -33,7 +33,6 @@ def obtener_opciones():
 
 maquinas, tecnicos = obtener_opciones()
 
-# Generar lista de horas AM / PM en intervalos de 5 minutos
 def generar_horas_am_pm():
     horas = []
     for h in range(1, 13):
@@ -57,7 +56,7 @@ with st.form("form_reporte_daño", clear_on_submit=True):
     st.markdown("🕒 **Selección de Tiempos (AM / PM)**")
     col_h1, col_h2 = st.columns(2)
     with col_h1:
-        str_hora_inicio = st.selectbox("Hora de Inicio del Paro", lista_horas, index=120) # Por defecto alrededor de las 10:00 AM
+        str_hora_inicio = st.selectbox("Hora de Inicio del Paro", lista_horas, index=120)
     with col_h2:
         str_hora_fin = st.selectbox("Hora de Finalización", lista_horas, index=126)
     
@@ -84,7 +83,6 @@ with st.form("form_reporte_daño", clear_on_submit=True):
         if not daño.strip() or not reparacion.strip():
             st.warning("Por favor completa la descripción del daño y la reparación.")
         else:
-            # Función para convertir formato AM/PM a objeto time y datetime
             def parse_am_pm(t_str, fecha_base):
                 t_partes, periodo = t_str.split(" ")
                 h_str, m_str = t_partes.split(":")
@@ -99,7 +97,7 @@ with st.form("form_reporte_daño", clear_on_submit=True):
             dt_ini = parse_am_pm(str_hora_inicio, fecha)
             dt_fin = parse_am_pm(str_hora_fin, fecha)
             
-            if dt_fin < dt_ini: # Por si cruza la medianoche
+            if dt_fin < dt_ini:
                 dt_fin += datetime.timedelta(days=1)
             
             diferencia = dt_fin - dt_ini
@@ -112,7 +110,7 @@ with st.form("form_reporte_daño", clear_on_submit=True):
             
             nuevo_registro = {
                 "MAQUINAS": maquina,
-                "AREA": "", # Campo de área omitido por solicitud
+                "AREA": "",
                 "HORA INICIO": dt_ini.strftime("%H:%M:%S"),
                 "HORA FIN": dt_fin.strftime("%H:%M:%S"),
                 "TIEMPO REAL": tiempo_real,
@@ -129,17 +127,17 @@ with st.form("form_reporte_daño", clear_on_submit=True):
             }
             
             try:
-                con_excel = pd.ExcelFile(EXCEL_FILE)
+                con_excel = pd.ExcelFile(EXCEL_FILE, engine='openpyxl')
                 hoja_objetivo = "Agosto" if "Agosto" in con_excel.sheet_names else con_excel.sheet_names[0]
                 
-                df_existente = pd.read_excel(EXCEL_FILE, sheet_name=hoja_objetivo)
+                df_existente = pd.read_excel(EXCEL_FILE, sheet_name=hoja_objetivo, engine='openpyxl')
                 df_nuevo = pd.concat([df_existente, pd.DataFrame([nuevo_registro])], ignore_index=True)
                 
                 with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl', mode='w') as writer:
                     df_nuevo.to_excel(writer, sheet_name=hoja_objetivo, index=False)
                     for sheet in con_excel.sheet_names:
                         if sheet != hoja_objetivo:
-                            pd.read_excel(EXCEL_FILE, sheet_name=sheet).to_excel(writer, sheet_name=sheet, index=False)
+                            pd.read_excel(EXCEL_FILE, sheet_name=sheet, engine='openpyxl').to_excel(writer, sheet_name=sheet, index=False)
                 
                 st.success("¡Daño registrado y guardado con éxito en el Excel!")
             except Exception as e:
