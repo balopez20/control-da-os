@@ -36,9 +36,8 @@ def obtener_opciones():
 maquinas, areas, tecnicos = obtener_opciones()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Registra las fallas de planta de forma rápida desde el celular.")
+st.markdown("Selecciona los datos de la falla y usa el selector de hora tipo reloj.")
 
-# CORREGIDO: clear_on_submit en lugar de clear_form
 with st.form("form_reporte_daño", clear_on_submit=True):
     fecha = st.date_input("Fecha del reporte", datetime.date.today())
     
@@ -48,20 +47,26 @@ with st.form("form_reporte_daño", clear_on_submit=True):
     with col2:
         area = st.selectbox("Área", areas)
         
-    hora_inicio = st.time_input("Hora de Inicio del Paro", datetime.datetime.now().time())
-    hora_fin = st.time_input("Hora de Finalización", datetime.datetime.now().time())
+    st.markdown("🕒 **Selección de Tiempos (Selector de Reloj)**")
+    col_h1, col_h2 = st.columns(2)
+    with col_h1:
+        hora_inicio = st.time_input("Hora de Inicio del Paro", datetime.datetime.now().time(), step=60)
+    with col_h2:
+        hora_fin = st.time_input("Hora de Finalización", datetime.datetime.now().time(), step=60)
     
     daño = st.text_area("Descripción del Daño / Falla")
     reparacion = st.text_area("Acción de Reparación Realizada")
     
     st.markdown("---")
-    st.subheader("Personal y Repuestos")
+    st.subheader("Personal de Mantenimiento y Repuestos")
     
-    col3, col4 = st.columns(2)
+    col3, col4, col5 = st.columns(3)
     with col3:
-        tecnico1 = st.selectbox("Técnico 1 (Responsable)", tecnicos)
+        tecnico1 = st.selectbox("Técnico 1", [""] + tecnicos)
     with col4:
-        tecnico2 = st.selectbox("Técnico 2 (Apoyo)", ["Ninguno"] + tecnicos)
+        tecnico2 = st.selectbox("Técnico 2", [""] + tecnicos)
+    with col5:
+        tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos)
         
     repuesto = st.text_input("Repuesto utilizado (Opcional)")
     cantidad = st.number_input("Cantidad", min_value=0, step=1)
@@ -72,25 +77,34 @@ with st.form("form_reporte_daño", clear_on_submit=True):
         if not daño.strip() or not reparacion.strip():
             st.warning("Por favor completa la descripción del daño y la reparación.")
         else:
+            # Cálculo exacto del tiempo real
             h_ini = datetime.datetime.combine(fecha, hora_inicio)
             h_fin = datetime.datetime.combine(fecha, hora_fin)
             if h_fin < h_ini:
                 h_fin += datetime.timedelta(days=1)
-            tiempo_real = str(h_fin - h_ini)
+            
+            diferencia = h_fin - h_ini
+            horas = diferencia.seconds // 3600
+            minutos = (diferencia.seconds % 3600) // 60
+            tiempo_real = f"{horas:02d}:{minutos:02d}:00"
+            
+            # Consolidar técnicos que participaron
+            lista_repara = [t for t in [tecnico1, tecnico2, tecnico3] if t != ""]
+            quien_repara = ", ".join(lista_repara) if lista_repara else ""
             
             nuevo_registro = {
                 "MAQUINAS": maquina,
                 "AREA": area,
-                "HORA INICIO": str(hora_inicio),
-                "HORA FIN": str(hora_fin),
+                "HORA INICIO": hora_inicio.strftime("%H:%M:%S"),
+                "HORA FIN": hora_fin.strftime("%H:%M:%S"),
                 "TIEMPO REAL": tiempo_real,
                 "NUMERO DE SOLICITUD": "",
                 "DAÑO": daño,
                 "REPARACION": reparacion,
                 "TECNICO 1": tecnico1,
-                "TECNICO2": tecnico2 if tecnico2 != "Ninguno" else "",
-                "TECNICO3": "",
-                "QUIEN REPARA": f"{tecnico1}, {tecnico2}" if tecnico2 != "Ninguno" else tecnico1,
+                "TECNICO2": tecnico2,
+                "TECNICO3": tecnico3,
+                "QUIEN REPARA": quien_repara,
                 "REPUESTOS ITEM": repuesto,
                 "CANTIDAD": cantidad if repuesto else "",
                 "DESCRIPCION": daño
@@ -109,6 +123,6 @@ with st.form("form_reporte_daño", clear_on_submit=True):
                         if sheet != hoja_objetivo:
                             pd.read_excel(EXCEL_FILE, sheet_name=sheet).to_excel(writer, sheet_name=sheet, index=False)
                 
-                st.success("¡Daño registrado y guardado en el Excel con éxito!")
+                st.success("¡Daño registrado y guardado con éxito en el Excel!")
             except Exception as e:
                 st.error(f"Error al guardar en el archivo Excel: {e}")
