@@ -5,11 +5,26 @@ import os
 
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
-excel_files = [f for f in os.listdir('.') if f.endswith('.xlsx')]
+excel_files = [f for f in os.listdir('.') if f.endswith('.xlsx') and not f.startswith('~$')]
 if excel_files:
     EXCEL_FILE = excel_files[0]
 else:
     EXCEL_FILE = "daños de mantenimiento.xlsx"
+
+# Función de seguridad: si el Excel no existe o está corrupto, se crea uno nuevo automáticamente
+def asegurar_excel_valido():
+    if not os.path.exists(EXCEL_FILE):
+        with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
+            pd.DataFrame(columns=["MAQUINAS", "AREA"]).to_excel(writer, sheet_name="MAQUINAS", index=False)
+            pd.DataFrame(columns=["TECNICO1", "TECNICO2"]).to_excel(writer, sheet_name="TECNICOS", index=False)
+            pd.DataFrame(columns=[
+                "MAQUINAS", "AREA", "HORA INICIO", "HORA FIN", "TIEMPO REAL", 
+                "NUMERO DE SOLICITUD", "DAÑO", "REPARACION", "TECNICO 1", 
+                "TECNICO2", "TECNICO3", "QUIEN REPARA", "REPUESTOS ITEM", 
+                "CANTIDAD", "DESCRIPCION"
+            ]).to_excel(writer, sheet_name="Agosto", index=False)
+
+asegurar_excel_valido()
 
 def obtener_opciones():
     try:
@@ -28,8 +43,8 @@ def obtener_opciones():
             tecnicos = ["WILLIAN DIAZ", "BAYRON LOPEZ", "DAVID PANTOJA"]
             
         return maquinas, tecnicos
-    except Exception as e:
-        return ["WNT", "SELCO2"], ["BAYRON LOPEZ", "WILLIAN DIAZ"]
+    except Exception:
+        return ["WNT", "SELCO2"], ["WILLIAN DIAZ", "BAYRON LOPEZ"]
 
 maquinas, tecnicos = obtener_opciones()
 
