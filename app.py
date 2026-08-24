@@ -1,52 +1,25 @@
 import streamlit as st
-import pandas as pd
 import datetime
-import os
+import requests
+import json
 
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
-excel_files = [f for f in os.listdir('.') if f.endswith('.xlsx') and not f.startswith('~$')]
-if excel_files:
-    EXCEL_FILE = excel_files[0]
-else:
-    EXCEL_FILE = "daños de mantenimiento.xlsx"
+# PEGA AQUÍ ENTRE LAS COMILLAS EL ENLACE QUE COPIASTE DE GOOGLE APPS SCRIPT (el que termina en /exec)
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKYQ_9Sx-gRo778XZLF2V_4iUaIs0IHKWTbGHc1q3dEmOI32-gaLLURA4aqE0GSjTg/exec"
 
-# Función de seguridad: si el Excel no existe o está corrupto, se crea uno nuevo automáticamente
-def asegurar_excel_valido():
-    if not os.path.exists(EXCEL_FILE):
-        with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
-            pd.DataFrame(columns=["MAQUINAS", "AREA"]).to_excel(writer, sheet_name="MAQUINAS", index=False)
-            pd.DataFrame(columns=["TECNICO1", "TECNICO2"]).to_excel(writer, sheet_name="TECNICOS", index=False)
-            pd.DataFrame(columns=[
-                "MAQUINAS", "AREA", "HORA INICIO", "HORA FIN", "TIEMPO REAL", 
-                "NUMERO DE SOLICITUD", "DAÑO", "REPARACION", "TECNICO 1", 
-                "TECNICO2", "TECNICO3", "QUIEN REPARA", "REPUESTOS ITEM", 
-                "CANTIDAD", "DESCRIPCION"
-            ]).to_excel(writer, sheet_name="Agosto", index=False)
+# Listas predeterminadas (puedes ajustarlas según tus máquinas y técnicos reales)
+maquinas = [
+    "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
+    "STREAM1", "STREAM2", "STREAM3", "AKRON1", "AKRON2", "JADE", "NANXING", 
+    "SKIPPER1", "SKIPPER2", "BHX1", "BHX2", "ROVER1", "NESTING", "VITAP"
+]
 
-asegurar_excel_valido()
-
-def obtener_opciones():
-    try:
-        xls = pd.ExcelFile(EXCEL_FILE, engine='openpyxl')
-        
-        if "MAQUINAS" in xls.sheet_names:
-            df_maq = pd.read_excel(EXCEL_FILE, sheet_name="MAQUINAS", engine='openpyxl').dropna(subset=['MAQUINAS'])
-            maquinas = df_maq['MAQUINAS'].tolist()
-        else:
-            maquinas = ["WNT", "SELCO2", "HOMAG400", "VITAP"]
-
-        if "TECNICOS" in xls.sheet_names:
-            df_tec = pd.read_excel(EXCEL_FILE, sheet_name="TECNICOS", engine='openpyxl')
-            tecnicos = df_tec['TECNICO1'].dropna().tolist()
-        else:
-            tecnicos = ["WILLIAN DIAZ", "BAYRON LOPEZ", "DAVID PANTOJA"]
-            
-        return maquinas, tecnicos
-    except Exception:
-        return ["WNT", "SELCO2"], ["WILLIAN DIAZ", "BAYRON LOPEZ"]
-
-maquinas, tecnicos = obtener_opciones()
+tecnicos = [
+    "WILLIAN DIAZ", "JAIRO ISAZA", "DAIRON MENESES", "LEONARDO ALVAREZ", 
+    "BAYRON LOPEZ", "HEBERT CHAPUEL", "ESTEBAN ROSERO", "BRANDON RAMOS", 
+    "DAVID PANTOJA", "CARLOS LUGO", "JULIO DAZA", "JHOAN MOTATO"
+]
 
 def generar_horas_am_pm():
     horas = []
@@ -61,7 +34,7 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Selecciona la máquina, las horas de inicio/fin y registra la falla fácilmente.")
+st.markdown("Registra las fallas de planta directamente hacia Google Sheets.")
 
 with st.form("form_reporte_daño", clear_on_submit=True):
     fecha = st.date_input("Fecha del reporte", datetime.date.today())
@@ -92,10 +65,12 @@ with st.form("form_reporte_daño", clear_on_submit=True):
     repuesto = st.text_input("Repuesto utilizado (Opcional)")
     cantidad = st.number_input("Cantidad", min_value=0, step=1)
     
-    enviar = st.form_submit_button("💾 Guardar Registro en el Excel")
+    enviar = st.form_submit_button("💾 Guardar Registro en Google Sheets")
     
     if enviar:
-        if not daño.strip() or not reparacion.strip():
+        if not GOOGLE_SCRIPT_URL or GOOGLE_SCRIPT_URL == "PEGA_AQUI_TU_URL_DE_GOOGLE_APPS_SCRIPT":
+            st.error("Por favor configura la URL de Google Apps Script en el código.")
+        elif not daño.strip() or not reparacion.strip():
             st.warning("Por favor completa la descripción del daño y la reparación.")
         else:
             def parse_am_pm(t_str, fecha_base):
@@ -123,37 +98,27 @@ with st.form("form_reporte_daño", clear_on_submit=True):
             lista_repara = [t for t in [tecnico1, tecnico2, tecnico3] if t != ""]
             quien_repara = ", ".join(lista_repara) if lista_repara else ""
             
-            nuevo_registro = {
-                "MAQUINAS": maquina,
-                "AREA": "",
-                "HORA INICIO": dt_ini.strftime("%H:%M:%S"),
-                "HORA FIN": dt_fin.strftime("%H:%M:%S"),
-                "TIEMPO REAL": tiempo_real,
-                "NUMERO DE SOLICITUD": "",
-                "DAÑO": daño,
-                "REPARACION": reparacion,
-                "TECNICO 1": tecnico1,
-                "TECNICO2": tecnico2,
-                "TECNICO3": tecnico3,
-                "QUIEN REPARA": quien_repara,
-                "REPUESTOS ITEM": repuesto,
-                "CANTIDAD": cantidad if repuesto else "",
-                "DESCRIPCION": daño
+            payload = {
+                "fecha": str(fecha),
+                "maquina": maquina,
+                "hora_inicio": dt_ini.strftime("%H:%M:%S"),
+                "hora_fin": dt_fin.strftime("%H:%M:%S"),
+                "tiempo_real": tiempo_real,
+                "daño": daño,
+                "reparacion": reparacion,
+                "tecnico1": tecnico1,
+                "tecnico2": tecnico2,
+                "tecnico3": tecnico3,
+                "quien_repara": quien_repara,
+                "repuesto": repuesto,
+                "cantidad": str(cantidad) if repuesto else ""
             }
             
             try:
-                con_excel = pd.ExcelFile(EXCEL_FILE, engine='openpyxl')
-                hoja_objetivo = "Agosto" if "Agosto" in con_excel.sheet_names else con_excel.sheet_names[0]
-                
-                df_existente = pd.read_excel(EXCEL_FILE, sheet_name=hoja_objetivo, engine='openpyxl')
-                df_nuevo = pd.concat([df_existente, pd.DataFrame([nuevo_registro])], ignore_index=True)
-                
-                with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl', mode='w') as writer:
-                    df_nuevo.to_excel(writer, sheet_name=hoja_objetivo, index=False)
-                    for sheet in con_excel.sheet_names:
-                        if sheet != hoja_objetivo:
-                            pd.read_excel(EXCEL_FILE, sheet_name=sheet, engine='openpyxl').to_excel(writer, sheet_name=sheet, index=False)
-                
-                st.success("¡Daño registrado y guardado con éxito en el Excel!")
+                response = requests.post(GOOGLE_SCRIPT_URL, json=payload)
+                if response.status_code == 200:
+                    st.success("¡Daño registrado y guardado con éxito en Google Sheets!")
+                else:
+                    st.error("Error al conectar con Google Sheets.")
             except Exception as e:
-                st.error(f"Error al guardar en el archivo Excel: {e}")
+                st.error(f"Error de conexión: {e}")
