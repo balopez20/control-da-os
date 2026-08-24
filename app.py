@@ -21,28 +21,28 @@ tecnicos = [
     "DAVID PANTOJA", "CARLOS LUGO", "JULIO DAZA", "JHOAN MOTATO"
 ]
 
-# Cargar catálogo de repuestos desde KARDEX MTTO.xlsx
+# Cargar catálogo de repuestos asegurando la lectura correcta de todas las columnas del Kardex
 @st.cache_data
 def cargar_kardex():
     kardex_file = "KARDEX MTTO.xlsx"
     if os.path.exists(kardex_file):
         try:
             df = pd.read_excel(kardex_file, sheet_name="Saldo", engine='openpyxl')
-            df = df.dropna(subset=['Desc. Item'])
-            
             dic_repuestos = {}
+            
             for _, row in df.iterrows():
-                item_val = str(row['Item']).replace('.0', '').strip() if pd.notna(row['Item']) else ""
-                codigo_val = str(row[' ']).replace('.0', '').strip() if ' ' in df.columns and pd.notna(row[' ']) else ""
-                desc_val = str(row['Desc. Item']).strip() if pd.notna(row['Desc. Item']) else ""
+                # Extraer columnas con seguridad de índices o nombres
+                item_val = str(row.iloc[0]).replace('.0', '').strip() if pd.notna(row.iloc[0]) else ""
+                codigo_val = str(row.iloc[1]).replace('.0', '').strip() if pd.notna(row.iloc[1]) else ""
+                desc_val = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else ""
                 
-                if item_val and item_val != 'nan':
+                if item_val and item_val != 'nan' and item_val != 'Item':
                     dic_repuestos[item_val] = desc_val
-                if codigo_val and codigo_val != 'nan':
+                if codigo_val and codigo_val != 'nan' and codigo_val != 'Item':
                     dic_repuestos[codigo_val] = desc_val
                     
             return dic_repuestos
-        except Exception:
+        except Exception as e:
             return {}
     return {}
 
@@ -66,7 +66,6 @@ st.markdown("Registra fallas")
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
-# Gestión de repuestos en la sesión para actualización en vivo
 if 'num_repuestos' not in st.session_state:
     st.session_state.num_repuestos = 1
 
@@ -97,7 +96,6 @@ with st.form("form_reporte_daño"):
     st.markdown("---")
     st.subheader("📦 Repuestos y Materiales")
     
-    # Botones de control de filas de repuestos
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         add_rep = st.form_submit_button("➕ Añadir otro repuesto")
@@ -118,7 +116,6 @@ with st.form("form_reporte_daño"):
         with col_r2:
             cant = st.text_input(f"Cantidad", value="1", key=f"cant_{i}")
         
-        # Búsqueda en vivo del código ingresado
         desc_encontrada = ""
         if codigo_ingresado.strip():
             codigo_limpio = codigo_ingresado.strip().replace('.0', '')
