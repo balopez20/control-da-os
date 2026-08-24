@@ -21,24 +21,30 @@ tecnicos = [
     "DAVID PANTOJA", "CARLOS LUGO", "JULIO DAZA", "JHOAN MOTATO"
 ]
 
-# Cargar catálogo de repuestos asegurando la lectura correcta de todas las columnas del Kardex
+# Cargar catálogo conservando estrictamente los ceros a la izquierda como texto
 @st.cache_data
 def cargar_kardex():
     kardex_file = "KARDEX MTTO.xlsx"
     if os.path.exists(kardex_file):
         try:
-            df = pd.read_excel(kardex_file, sheet_name="Saldo", engine='openpyxl')
+            # Leer especificando que todas las columnas se traten como texto (dtype=str) para evitar pérdida de ceros
+            df = pd.read_excel(kardex_file, sheet_name="Saldo", dtype=str, engine='openpyxl')
             dic_repuestos = {}
             
             for _, row in df.iterrows():
-                # Extraer columnas con seguridad de índices o nombres
-                item_val = str(row.iloc[0]).replace('.0', '').strip() if pd.notna(row.iloc[0]) else ""
-                codigo_val = str(row.iloc[1]).replace('.0', '').strip() if pd.notna(row.iloc[1]) else ""
-                desc_val = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else ""
+                item_val = row.iloc[0].strip() if pd.notna(row.iloc[0]) else ""
+                codigo_val = row.iloc[1].strip() if pd.notna(row.iloc[1]) else ""
+                desc_val = row.iloc[2].strip() if pd.notna(row.iloc[2]) else ""
                 
-                if item_val and item_val != 'nan' and item_val != 'Item':
+                # Limpiar terminaciones .0 si el Excel las llegó a pasar
+                if item_val.endswith('.0'):
+                    item_val = item_val[:-2]
+                if codigo_val.endswith('.0'):
+                    codigo_val = codigo_val[:-2]
+                
+                if item_val and item_val.lower() != 'nan' and item_val.lower() != 'item':
                     dic_repuestos[item_val] = desc_val
-                if codigo_val and codigo_val != 'nan' and codigo_val != 'Item':
+                if codigo_val and codigo_val.lower() != 'nan' and codigo_val.lower() != 'item':
                     dic_repuestos[codigo_val] = desc_val
                     
             return dic_repuestos
@@ -61,7 +67,7 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Registra fallas")
+st.markdown("Búsqueda de repuestos  ")
 
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
@@ -118,15 +124,17 @@ with st.form("form_reporte_daño"):
         
         desc_encontrada = ""
         if codigo_ingresado.strip():
-            codigo_limpio = codigo_ingresado.strip().replace('.0', '')
-            if codigo_limpio in diccionario_repuestos:
-                desc_encontrada = diccionario_repuestos[codigo_limpio]
+            # Buscar el código exacto tal como lo escribió el usuario (respetando ceros iniciales)
+            codigo_exacto = codigo_ingresado.strip()
+            if codigo_exacto in diccionario_repuestos:
+                desc_encontrada = diccionario_repuestos[codigo_exacto]
             else:
-                match = [v for k, v in diccionario_repuestos.items() if codigo_limpio.lower() in k.lower()]
+                # Si no hay coincidencia exacta, busca aproximaciones
+                match = [v for k, v in diccionario_repuestos.items() if codigo_exacto.lower() in k.lower()]
                 desc_encontrada = match[0] if match else "⚠️ Ítem no encontrado"
             
             st.info(f"📄 **Descripción:** {desc_encontrada}")
-            repuestos_lista.append(f"[{codigo_ingresado}] {desc_encontrada} (Cant: {cant})")
+            repuestos_lista.append(f"[{codigo_exacto}] {desc_encontrada} (Cant: {cant})")
         
         st.markdown("---")
 
