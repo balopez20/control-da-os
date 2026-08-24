@@ -33,7 +33,7 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Registra las fallas de planta con múltiples repuestos.")
+st.markdown("Registra las fallas de planta.")
 
 # Control de repuestos dinámicos en la memoria de la sesión
 if 'num_repuestos' not in st.session_state:
@@ -64,7 +64,7 @@ with st.form("form_reporte_daño"):
         tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos)
         
     st.markdown("---")
-    st.subheader("📦 Repuestos y Materiales (Con códigos de ceros iniciales)")
+    st.subheader("📦 Repuestos y Materiales")
     
     # Botones para agregar o quitar filas de repuestos
     col_btn1, col_btn2 = st.columns(2)
