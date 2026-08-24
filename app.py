@@ -63,7 +63,7 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Registra fallas con búsqueda automática avanzada en el Kardex.")
+st.markdown("Registra fallas")
 
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se detectó o no se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub. (Podrás escribir repuestos manualmente si es necesario).")
