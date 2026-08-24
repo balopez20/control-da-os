@@ -1,12 +1,13 @@
 import streamlit as st
+import pandas as pd
 import datetime
 import requests
-import json
+import os
 
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
 # PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT (la que termina en /exec)
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKYQ_9Sx-gRo778XZLF2V_4iUaIs0IHKWTbGHc1q3dEmOI32-gaLLURA4aqE0GSjTg/exec"
+GOOGLE_SCRIPT_URL = "PEGA_AQUI_TU_URL_DE_GOOGLE_APPS_SCRIPT"
 
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
@@ -19,6 +20,28 @@ tecnicos = [
     "BAYRON LOPEZ", "HEBERT CHAPUEL", "ESTEBAN ROSERO", "BRANDON RAMOS", 
     "DAVID PANTOJA", "CARLOS LUGO", "JULIO DAZA", "JHOAN MOTATO"
 ]
+
+# Cargar catálogo de repuestos desde KARDEX MTTO.xlsx
+@st.cache_data
+def cargar_kardex():
+    kardex_file = "KARDEX MTTO.xlsx"
+    if os.path.exists(kardex_file):
+        try:
+            df = pd.read_excel(kardex_file, sheet_name="Saldo", engine='openpyxl')
+            # Limpiar y preparar diccionario de códigos y descripciones
+            df = df.dropna(subset=['Desc. Item'])
+            # Convertir item a string para preservar ceros a la izquierda
+            df['Item_str'] = df['Item'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            df['Desc'] = df['Desc. Item'].astype(str).str.strip()
+            # Crear diccionario { "codigo": "descripcion" } y lista de opciones para buscar
+            dic_repuestos = dict(zip(df['Item_str'], df['Desc']))
+            lista_codigos = df['Item_str'].tolist()
+            return dic_repuestos, lista_codigos
+        except Exception:
+            return {}, []
+    return {}, []
+
+diccionario_repuestos, lista_codigos_rep = cargar_kardex()
 
 def generar_horas_am_pm():
     horas = []
@@ -33,9 +56,8 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Registra las fallas de planta.")
+st.markdown("Registra fallas con búsqueda automática de repuestos desde el Kardex.")
 
-# Control de repuestos dinámicos en la memoria de la sesión
 if 'num_repuestos' not in st.session_state:
     st.session_state.num_repuestos = 1
 
@@ -64,9 +86,8 @@ with st.form("form_reporte_daño"):
         tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos)
         
     st.markdown("---")
-    st.subheader("📦 Repuestos y Materiales")
+    st.subheader("📦 Repuestos y Materiales (Búsqueda por Kardex)")
     
-    # Botones para agregar o quitar filas de repuestos
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if st.form_submit_button("➕ Añadir otro repuesto"):
@@ -79,15 +100,29 @@ with st.form("form_reporte_daño"):
 
     repuestos_lista = []
     for i in range(st.session_state.num_repuestos):
-        col_r1, col_r2 = st.columns([3, 1])
+        col_r1, col_r2, col_r3 = st.columns([2, 2, 1])
         with col_r1:
-            # Usar text_input para evitar que se borren los ceros a la izquierda (ej: '00123')
-            rep = st.text_input(f"Código / Repuesto #{i+1}", key=f"rep_{i}")
+            # Selector o campo de código de ítem
+            codigo_ingresado = st.text_input(f"Código / Item #{i+1}", key=f"cod_{i}")
         with col_r2:
-            cant = st.text_input(f"Cantidad #{i+1}", value="1", key=f"cant_{i}")
+            # Búsqueda automática de la descripción en base al código escrito
+            desc_encontrada = ""
+            if codigo_ingresado.strip():
+                codigo_limpio = codigo_ingresado.strip()
+                # Buscar coincidencia exacta o parcial
+                if codigo_limpio in diccionario_repuestos:
+                    desc_encontrada = diccionario_repuestos[codigo_limpio]
+                else:
+                    # Búsqueda flexible si escribe parte del código
+                    match = [v for k, v in diccionario_repuestos.items() if codigo_limpio in k]
+                    desc_encontrada = match[0] if match else "⚠️ Ítem no encontrado en Kardex"
+            
+            st.text_input(f"Descripción #{i+1}", value=desc_encontrada, disabled=True, key=f"desc_{i}")
+        with col_r3:
+            cant = st.text_input(f"Cant #{i+1}", value="1", key=f"cant_{i}")
         
-        if rep.strip():
-            repuestos_lista.append(f"{rep} (Cant: {cant})")
+        if codigo_ingresado.strip():
+            repuestos_lista.append(f"[{codigo_ingresado}] {desc_encontrada} (Cant: {cant})")
 
     enviar = st.form_submit_button("💾 Guardar Registro en Google Sheets")
     
@@ -122,11 +157,8 @@ with st.form("form_reporte_daño"):
             lista_repara = [t for t in [tecnico1, tecnico2, tecnico3] if t != ""]
             quien_repara = ", ".join(lista_repara) if lista_repara else ""
             
-            # Unir todos los repuestos en un solo texto organizado o mantenerlos agrupados
             repuestos_texto = " | ".join(repuestos_lista) if repuestos_lista else ""
             
-            # Forzar comilla simple delante de los textos numéricos si deseas protegerlos en Google Sheets, 
-            # o enviarlos como texto plano asegurado.
             payload = {
                 "fecha": str(fecha),
                 "maquina": maquina,
@@ -137,7 +169,7 @@ with st.form("form_reporte_daño"):
                 "reparacion": reparacion,
                 "tecnico1": tecnico1,
                 "tecnico2": tecnico2,
-                "tecnico3": tecnico3,
+                "tecnico3": técnico3 if 'técnico3' in locals() and tecnico3 else "",
                 "quien_repara": quien_repara,
                 "repuesto": repuestos_texto,
                 "cantidad": "Ver detalle" if len(repuestos_lista) > 1 else (cant if 'cant' in locals() and repuestos_lista else "")
@@ -147,7 +179,7 @@ with st.form("form_reporte_daño"):
                 response = requests.post(GOOGLE_SCRIPT_URL, json=payload)
                 if response.status_code == 200:
                     st.success("¡Daño registrado y guardado con éxito en Google Sheets!")
-                    st.session_state.num_repuestos = 1 # Reiniciar contador
+                    st.session_state.num_repuestos = 1
                 else:
                     st.error("Error al conectar con Google Sheets.")
             except Exception as e:
