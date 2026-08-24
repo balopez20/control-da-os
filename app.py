@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import datetime
@@ -22,7 +21,7 @@ tecnicos = [
     "DAVID PANTOJA", "CARLOS LUGO", "JULIO DAZA", "JHOAN MOTATO"
 ]
 
-# Cargar catálogo de repuestos de forma robusta desde KARDEX MTTO.xlsx
+# Cargar catálogo de repuestos desde KARDEX MTTO.xlsx
 @st.cache_data
 def cargar_kardex():
     kardex_file = "KARDEX MTTO.xlsx"
@@ -33,10 +32,9 @@ def cargar_kardex():
             
             dic_repuestos = {}
             for _, row in df.iterrows():
-                # Limpiar Item principal y código secundario (columna ' ')
                 item_val = str(row['Item']).replace('.0', '').strip() if pd.notna(row['Item']) else ""
                 codigo_val = str(row[' ']).replace('.0', '').strip() if ' ' in df.columns and pd.notna(row[' ']) else ""
-                desc_val = str(row['Desc. Item']).strip()
+                desc_val = str(row['Desc. Item']).strip() if pd.notna(row['Desc. Item']) else ""
                 
                 if item_val and item_val != 'nan':
                     dic_repuestos[item_val] = desc_val
@@ -44,7 +42,7 @@ def cargar_kardex():
                     dic_repuestos[codigo_val] = desc_val
                     
             return dic_repuestos
-        except Exception as e:
+        except Exception:
             return {}
     return {}
 
@@ -66,8 +64,9 @@ st.title("📱 Reporte Diario de Daños")
 st.markdown("Registra fallas")
 
 if not diccionario_repuestos:
-    st.warning("⚠️ Nota: No se detectó o no se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub. (Podrás escribir repuestos manualmente si es necesario).")
+    st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
+# Gestión de repuestos en la sesión para actualización en vivo
 if 'num_repuestos' not in st.session_state:
     st.session_state.num_repuestos = 1
 
@@ -98,38 +97,41 @@ with st.form("form_reporte_daño"):
     st.markdown("---")
     st.subheader("📦 Repuestos y Materiales")
     
+    # Botones de control de filas de repuestos
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
-        if st.form_submit_button("➕ Añadir otro repuesto"):
-            st.session_state.num_repuestos += 1
-            st.rerun()
+        add_rep = st.form_submit_button("➕ Añadir otro repuesto")
     with col_btn2:
-        if st.session_state.num_repuestos > 1 and st.form_submit_button("➖ Quitar último repuesto"):
-            st.session_state.num_repuestos -= 1
-            st.rerun()
+        rem_rep = st.form_submit_button("➖ Quitar último repuesto")
+
+    if add_rep:
+        st.session_state.num_repuestos += 1
+    if rem_rep and st.session_state.num_repuestos > 1:
+        st.session_state.num_repuestos -= 1
 
     repuestos_lista = []
     for i in range(st.session_state.num_repuestos):
-        col_r1, col_r2, col_r3 = st.columns([2, 2, 1])
+        st.markdown(f"**Repuesto #{i+1}**")
+        col_r1, col_r2 = st.columns([2, 1])
         with col_r1:
-            codigo_ingresado = st.text_input(f"Código / Item #{i+1}", key=f"cod_{i}")
+            codigo_ingresado = st.text_input(f"Código o Ítem", key=f"cod_{i}")
         with col_r2:
-            desc_encontrada = ""
-            if codigo_ingresado.strip():
-                codigo_limpio = codigo_ingresado.strip().replace('.0', '')
-                if codigo_limpio in diccionario_repuestos:
-                    desc_encontrada = diccionario_repuestos[codigo_limpio]
-                else:
-                    # Búsqueda parcial por si escribe parte de la descripción o código
-                    match = [v for k, v in diccionario_repuestos.items() if codigo_limpio.lower() in k.lower()]
-                    desc_encontrada = match[0] if match else "⚠️ Ítem no encontrado"
-            
-            st.text_input(f"Descripción #{i+1}", value=desc_encontrada, disabled=True, key=f"desc_{i}")
-        with col_r3:
-            cant = st.text_input(f"Cant #{i+1}", value="1", key=f"cant_{i}")
+            cant = st.text_input(f"Cantidad", value="1", key=f"cant_{i}")
         
+        # Búsqueda en vivo del código ingresado
+        desc_encontrada = ""
         if codigo_ingresado.strip():
+            codigo_limpio = codigo_ingresado.strip().replace('.0', '')
+            if codigo_limpio in diccionario_repuestos:
+                desc_encontrada = diccionario_repuestos[codigo_limpio]
+            else:
+                match = [v for k, v in diccionario_repuestos.items() if codigo_limpio.lower() in k.lower()]
+                desc_encontrada = match[0] if match else "⚠️ Ítem no encontrado"
+            
+            st.info(f"📄 **Descripción:** {desc_encontrada}")
             repuestos_lista.append(f"[{codigo_ingresado}] {desc_encontrada} (Cant: {cant})")
+        
+        st.markdown("---")
 
     enviar = st.form_submit_button("💾 Guardar Registro en Google Sheets")
     
