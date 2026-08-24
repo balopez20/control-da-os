@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import datetime
@@ -21,27 +22,33 @@ tecnicos = [
     "DAVID PANTOJA", "CARLOS LUGO", "JULIO DAZA", "JHOAN MOTATO"
 ]
 
-# Cargar catálogo de repuestos desde KARDEX MTTO.xlsx
+# Cargar catálogo de repuestos de forma robusta desde KARDEX MTTO.xlsx
 @st.cache_data
 def cargar_kardex():
     kardex_file = "KARDEX MTTO.xlsx"
     if os.path.exists(kardex_file):
         try:
             df = pd.read_excel(kardex_file, sheet_name="Saldo", engine='openpyxl')
-            # Limpiar y preparar diccionario de códigos y descripciones
             df = df.dropna(subset=['Desc. Item'])
-            # Convertir item a string para preservar ceros a la izquierda
-            df['Item_str'] = df['Item'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-            df['Desc'] = df['Desc. Item'].astype(str).str.strip()
-            # Crear diccionario { "codigo": "descripcion" } y lista de opciones para buscar
-            dic_repuestos = dict(zip(df['Item_str'], df['Desc']))
-            lista_codigos = df['Item_str'].tolist()
-            return dic_repuestos, lista_codigos
-        except Exception:
-            return {}, []
-    return {}, []
+            
+            dic_repuestos = {}
+            for _, row in df.iterrows():
+                # Limpiar Item principal y código secundario (columna ' ')
+                item_val = str(row['Item']).replace('.0', '').strip() if pd.notna(row['Item']) else ""
+                codigo_val = str(row[' ']).replace('.0', '').strip() if ' ' in df.columns and pd.notna(row[' ']) else ""
+                desc_val = str(row['Desc. Item']).strip()
+                
+                if item_val and item_val != 'nan':
+                    dic_repuestos[item_val] = desc_val
+                if codigo_val and codigo_val != 'nan':
+                    dic_repuestos[codigo_val] = desc_val
+                    
+            return dic_repuestos
+        except Exception as e:
+            return {}
+    return {}
 
-diccionario_repuestos, lista_codigos_rep = cargar_kardex()
+diccionario_repuestos = cargar_kardex()
 
 def generar_horas_am_pm():
     horas = []
@@ -56,7 +63,10 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Registra fallas con búsqueda automática de repuestos desde el Kardex.")
+st.markdown("Registra fallas con búsqueda automática avanzada en el Kardex.")
+
+if not diccionario_repuestos:
+    st.warning("⚠️ Nota: No se detectó o no se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub. (Podrás escribir repuestos manualmente si es necesario).")
 
 if 'num_repuestos' not in st.session_state:
     st.session_state.num_repuestos = 1
@@ -86,7 +96,7 @@ with st.form("form_reporte_daño"):
         tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos)
         
     st.markdown("---")
-    st.subheader("📦 Repuestos y Materiales (Búsqueda por Kardex)")
+    st.subheader("📦 Repuestos y Materiales")
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -102,20 +112,17 @@ with st.form("form_reporte_daño"):
     for i in range(st.session_state.num_repuestos):
         col_r1, col_r2, col_r3 = st.columns([2, 2, 1])
         with col_r1:
-            # Selector o campo de código de ítem
             codigo_ingresado = st.text_input(f"Código / Item #{i+1}", key=f"cod_{i}")
         with col_r2:
-            # Búsqueda automática de la descripción en base al código escrito
             desc_encontrada = ""
             if codigo_ingresado.strip():
-                codigo_limpio = codigo_ingresado.strip()
-                # Buscar coincidencia exacta o parcial
+                codigo_limpio = codigo_ingresado.strip().replace('.0', '')
                 if codigo_limpio in diccionario_repuestos:
                     desc_encontrada = diccionario_repuestos[codigo_limpio]
                 else:
-                    # Búsqueda flexible si escribe parte del código
-                    match = [v for k, v in diccionario_repuestos.items() if codigo_limpio in k]
-                    desc_encontrada = match[0] if match else "⚠️ Ítem no encontrado en Kardex"
+                    # Búsqueda parcial por si escribe parte de la descripción o código
+                    match = [v for k, v in diccionario_repuestos.items() if codigo_limpio.lower() in k.lower()]
+                    desc_encontrada = match[0] if match else "⚠️ Ítem no encontrado"
             
             st.text_input(f"Descripción #{i+1}", value=desc_encontrada, disabled=True, key=f"desc_{i}")
         with col_r3:
@@ -169,7 +176,7 @@ with st.form("form_reporte_daño"):
                 "reparacion": reparacion,
                 "tecnico1": tecnico1,
                 "tecnico2": tecnico2,
-                "tecnico3": técnico3 if 'técnico3' in locals() and tecnico3 else "",
+                "tecnico3": tecnico3,
                 "quien_repara": quien_repara,
                 "repuesto": repuestos_texto,
                 "cantidad": "Ver detalle" if len(repuestos_lista) > 1 else (cant if 'cant' in locals() and repuestos_lista else "")
