@@ -7,7 +7,7 @@ import os
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
 # PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT (la que termina en /exec)
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKYQ_9Sx-gRo778XZLF2V_4iUaIs0IHKWTbGHc1q3dEmOI32-gaLLURA4aqE0GSjTg/exec"
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKYQ_9Sx-gRo778XZLF2V_4iUaIs0IHKWTbGHc1q3dEmOI32-gaLLURA4aqE0GSjTg/execT"
 
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
@@ -21,13 +21,11 @@ tecnicos = [
     "DAVID PANTOJA", "CARLOS LUGO", "JULIO DAZA", "JHOAN MOTATO"
 ]
 
-# Cargar catálogo conservando estrictamente los ceros a la izquierda como texto
 @st.cache_data
 def cargar_kardex():
     kardex_file = "KARDEX MTTO.xlsx"
     if os.path.exists(kardex_file):
         try:
-            # Leer especificando que todas las columnas se traten como texto (dtype=str) para evitar pérdida de ceros
             df = pd.read_excel(kardex_file, sheet_name="Saldo", dtype=str, engine='openpyxl')
             dic_repuestos = {}
             
@@ -36,7 +34,6 @@ def cargar_kardex():
                 codigo_val = row.iloc[1].strip() if pd.notna(row.iloc[1]) else ""
                 desc_val = row.iloc[2].strip() if pd.notna(row.iloc[2]) else ""
                 
-                # Limpiar terminaciones .0 si el Excel las llegó a pasar
                 if item_val.endswith('.0'):
                     item_val = item_val[:-2]
                 if codigo_val.endswith('.0'):
@@ -67,13 +64,23 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Búsqueda de repuestos  ")
+st.markdown("Registra fallas")
 
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
-if 'num_repuestos' not in st.session_state:
+# Control de estado para limpiar formulario al guardar
+if 'form_submitted' not in st.session_state:
+    st.session_state.form_submitted = False
+
+if 'num_repuestos' not in st.session_state or st.session_state.form_submitted:
     st.session_state.num_repuestos = 1
+    if st.session_state.form_submitted:
+        st.session_state.form_submitted = False
+        # Limpiar keys de inputs anteriores
+        for key in list(st.session_state.keys()):
+            if key.startswith('cod_') or key.startswith('cant_'):
+                del st.session_state[key]
 
 with st.form("form_reporte_daño"):
     fecha = st.date_input("Fecha del reporte", datetime.date.today())
@@ -124,12 +131,10 @@ with st.form("form_reporte_daño"):
         
         desc_encontrada = ""
         if codigo_ingresado.strip():
-            # Buscar el código exacto tal como lo escribió el usuario (respetando ceros iniciales)
             codigo_exacto = codigo_ingresado.strip()
             if codigo_exacto in diccionario_repuestos:
                 desc_encontrada = diccionario_repuestos[codigo_exacto]
             else:
-                # Si no hay coincidencia exacta, busca aproximaciones
                 match = [v for k, v in diccionario_repuestos.items() if codigo_exacto.lower() in k.lower()]
                 desc_encontrada = match[0] if match else "⚠️ Ítem no encontrado"
             
@@ -193,7 +198,8 @@ with st.form("form_reporte_daño"):
                 response = requests.post(GOOGLE_SCRIPT_URL, json=payload)
                 if response.status_code == 200:
                     st.success("¡Daño registrado y guardado con éxito en Google Sheets!")
-                    st.session_state.num_repuestos = 1
+                    st.session_state.form_submitted = True
+                    st.rerun()
                 else:
                     st.error("Error al conectar con Google Sheets.")
             except Exception as e:
