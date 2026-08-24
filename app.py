@@ -5,10 +5,9 @@ import json
 
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
-# PEGA AQUÍ ENTRE LAS COMILLAS EL ENLACE QUE COPIASTE DE GOOGLE APPS SCRIPT (el que termina en /exec)
+# PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT (la que termina en /exec)
 GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKYQ_9Sx-gRo778XZLF2V_4iUaIs0IHKWTbGHc1q3dEmOI32-gaLLURA4aqE0GSjTg/exec"
 
-# Listas predeterminadas (puedes ajustarlas según tus máquinas y técnicos reales)
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
     "STREAM1", "STREAM2", "STREAM3", "AKRON1", "AKRON2", "JADE", "NANXING", 
@@ -34,11 +33,14 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Registra las fallas de planta directamente hacia Google Sheets.")
+st.markdown("Registra las fallas de planta con múltiples repuestos.")
 
-with st.form("form_reporte_daño", clear_on_submit=True):
+# Control de repuestos dinámicos en la memoria de la sesión
+if 'num_repuestos' not in st.session_state:
+    st.session_state.num_repuestos = 1
+
+with st.form("form_reporte_daño"):
     fecha = st.date_input("Fecha del reporte", datetime.date.today())
-    
     maquina = st.selectbox("Máquina / Equipo", maquinas)
     
     st.markdown("🕒 **Selección de Tiempos (AM / PM)**")
@@ -52,8 +54,7 @@ with st.form("form_reporte_daño", clear_on_submit=True):
     reparacion = st.text_area("Acción de Reparación Realizada")
     
     st.markdown("---")
-    st.subheader("Personal de Mantenimiento y Repuestos")
-    
+    st.subheader("Personal de Mantenimiento")
     col3, col4, col5 = st.columns(3)
     with col3:
         tecnico1 = st.selectbox("Técnico 1", [""] + tecnicos)
@@ -62,9 +63,32 @@ with st.form("form_reporte_daño", clear_on_submit=True):
     with col5:
         tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos)
         
-    repuesto = st.text_input("Repuesto utilizado (Opcional)")
-    cantidad = st.number_input("Cantidad", min_value=0, step=1)
+    st.markdown("---")
+    st.subheader("📦 Repuestos y Materiales (Con códigos de ceros iniciales)")
     
+    # Botones para agregar o quitar filas de repuestos
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.form_submit_button("➕ Añadir otro repuesto"):
+            st.session_state.num_repuestos += 1
+            st.rerun()
+    with col_btn2:
+        if st.session_state.num_repuestos > 1 and st.form_submit_button("➖ Quitar último repuesto"):
+            st.session_state.num_repuestos -= 1
+            st.rerun()
+
+    repuestos_lista = []
+    for i in range(st.session_state.num_repuestos):
+        col_r1, col_r2 = st.columns([3, 1])
+        with col_r1:
+            # Usar text_input para evitar que se borren los ceros a la izquierda (ej: '00123')
+            rep = st.text_input(f"Código / Repuesto #{i+1}", key=f"rep_{i}")
+        with col_r2:
+            cant = st.text_input(f"Cantidad #{i+1}", value="1", key=f"cant_{i}")
+        
+        if rep.strip():
+            repuestos_lista.append(f"{rep} (Cant: {cant})")
+
     enviar = st.form_submit_button("💾 Guardar Registro en Google Sheets")
     
     if enviar:
@@ -98,6 +122,11 @@ with st.form("form_reporte_daño", clear_on_submit=True):
             lista_repara = [t for t in [tecnico1, tecnico2, tecnico3] if t != ""]
             quien_repara = ", ".join(lista_repara) if lista_repara else ""
             
+            # Unir todos los repuestos en un solo texto organizado o mantenerlos agrupados
+            repuestos_texto = " | ".join(repuestos_lista) if repuestos_lista else ""
+            
+            # Forzar comilla simple delante de los textos numéricos si deseas protegerlos en Google Sheets, 
+            # o enviarlos como texto plano asegurado.
             payload = {
                 "fecha": str(fecha),
                 "maquina": maquina,
@@ -110,14 +139,15 @@ with st.form("form_reporte_daño", clear_on_submit=True):
                 "tecnico2": tecnico2,
                 "tecnico3": tecnico3,
                 "quien_repara": quien_repara,
-                "repuesto": repuesto,
-                "cantidad": str(cantidad) if repuesto else ""
+                "repuesto": repuestos_texto,
+                "cantidad": "Ver detalle" if len(repuestos_lista) > 1 else (cant if 'cant' in locals() and repuestos_lista else "")
             }
             
             try:
                 response = requests.post(GOOGLE_SCRIPT_URL, json=payload)
                 if response.status_code == 200:
                     st.success("¡Daño registrado y guardado con éxito en Google Sheets!")
+                    st.session_state.num_repuestos = 1 # Reiniciar contador
                 else:
                     st.error("Error al conectar con Google Sheets.")
             except Exception as e:
