@@ -146,7 +146,7 @@ with st.form("form_reporte_daño"):
     enviar = st.form_submit_button("💾 Guardar Registro en Google Sheets")
     
     if enviar:
-        if not GOOGLE_SCRIPT_URL or GOOGLE_SCRIPT_URL == "PEGA_AQUI_TU_URL_DE_GOOGLE_APPS_SCRIPT":
+        if not GOOGLE_SCRIPT_URL or GOOGLE_SCRIPT_URL == "https://script.google.com/macros/s/AKfycbzKYQ_9Sx-gRo778XZLF2V_4iUaIs0IHKWTbGHc1q3dEmOI32-gaLLURA4aqE0GSjTg/exec":
             st.error("Por favor configura la URL de Google Apps Script en el código.")
         elif not daño.strip() or not reparacion.strip():
             st.warning("Por favor completa la descripción del daño y la reparación.")
