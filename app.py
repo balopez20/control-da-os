@@ -7,7 +7,7 @@ import os
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
 # PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT (la que termina en /exec)
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKYQ_9Sx-gRo778XZLF2V_4iUaIs0IHKWTbGHc1q3dEmOI32-gaLLURA4aqE0GSjTg/exec"
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbya_napoqmMXVOnGiCn70WgGjPJdT8AVqW7ehPKq8PObbtwa0UrXeRyH29zOxofSKwC/exec"
 
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
@@ -64,7 +64,7 @@ def generar_horas_am_pm():
 lista_horas = generar_horas_am_pm()
 
 st.title("📱 Reporte Diario de Daños")
-st.markdown("Registra fallas")
+st.markdown("Registra fallas con limpieza automática al guardar.")
 
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
@@ -146,7 +146,7 @@ with st.form("form_reporte_daño"):
     enviar = st.form_submit_button("💾 Guardar Registro en Google Sheets")
     
     if enviar:
-        if not GOOGLE_SCRIPT_URL or GOOGLE_SCRIPT_URL == "https://script.google.com/macros/s/AKfycbzKYQ_9Sx-gRo778XZLF2V_4iUaIs0IHKWTbGHc1q3dEmOI32-gaLLURA4aqE0GSjTg/exec":
+        if not GOOGLE_SCRIPT_URL or GOOGLE_SCRIPT_URL == "PEGA_AQUI_TU_URL_DE_GOOGLE_APPS_SCRIPT":
             st.error("Por favor configura la URL de Google Apps Script en el código.")
         elif not daño.strip() or not reparacion.strip():
             st.warning("Por favor completa la descripción del daño y la reparación.")
