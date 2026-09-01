@@ -7,7 +7,7 @@ import os
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
 # PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT (la que termina en /exec)
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9H_gIgCdbNotyZcHG-Zn7xqHPdQx9C6EJkB8qr6mCl1T2mVcTqhtpC19dJzgyKmWR/exec"
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyto3Jbq1p8xkHR-GAe5E2q-0CQl_kkkpE3UT6868Zdy0-yaDH1m6_zz2hVI00Utlo/exec"
 
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
