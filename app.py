@@ -13,7 +13,7 @@ GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw-ev0tuia3kl6Wkdec
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
     "STREAM1", "STREAM2", "STREAM3", "AKRON1", "AKRON2", "JADE", "NANXING", 
-    "SKIPPER1", "SKIPPER2", "BHX1", "BHX2", "ROVER1", "NESTING", "VITAP"
+    "SKIPPER1", "SKIPPER2", "SKIPPER3", "SKIPPER4", "BHX1", "BHX2", "ROVER1", "NESTING", "VITAP"
 ]
 
 tecnicos = [
