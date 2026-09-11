@@ -8,7 +8,7 @@ import os
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
 # ⚠️ PEGA AQUÍ LA NUEVA URL DE TU DESPLIEGUE EN GOOGLE APPS SCRIPT ⚠️
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGHxMXLbTKNvJXvQ2uyghy813pF9XMPqlMPqNWg3OrOmoF7BWua8ZN_6_bmNGZ3n-wkQ/exec"
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw-ev0tuia3kl6Wkdec_0Q3-CxOlRHJ2cgDuGJp9Rf94ehBDEu4X7putnQhUsu33CGmhw/exec"
 
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
