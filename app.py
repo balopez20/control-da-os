@@ -2,12 +2,14 @@ import streamlit as st
 import pandas as pd
 import datetime
 import requests
+import json
 import os
 
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
-# URL DE TU GOOGLE APPS SCRIPT
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyy2Tx6xflMyBRgfHwIcamSZ3zGpR1UnM_7CbpzF0OPbDa7e39LZ3YDfQq-TfJcZsvY/exec"
+# ⚠️ PEGA AQUÍ LA NUEVA URL DE TU DESPLIEGUE EN GOOGLE APPS SCRIPT ⚠️
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGHxMXLbTKNvJXvQ2uyghy813pF9XMPqlMPqNWg3OrOmoF7BWua8ZN_6_bmNGZ3n-wkQ/exec"
+
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
     "STREAM1", "STREAM2", "STREAM3", "AKRON1", "AKRON2", "JADE", "NANXING", 
@@ -68,7 +70,7 @@ st.markdown("Registra fallas con limpieza automática al guardar.")
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
-# Manejo de estado
+# Manejo de estado para reiniciar el formulario tras enviar
 if 'form_submitted' not in st.session_state:
     st.session_state.form_submitted = False
 
@@ -146,8 +148,8 @@ with st.form("form_reporte_daño"):
     enviar = st.form_submit_button("💾 Guardar Registro en Google Sheets")
     
     if enviar:
-        if not GOOGLE_SCRIPT_URL:
-            st.error("Por favor configura la URL de Google Apps Script.")
+        if not GOOGLE_SCRIPT_URL or "TU_NUEVO_ID_AQUI" in GOOGLE_SCRIPT_URL:
+            st.error("Por favor configura la URL válida de Google Apps Script.")
         elif not daño.strip() or not reparacion.strip():
             st.warning("Por favor completa la descripción del daño y la reparación.")
         else:
@@ -178,7 +180,6 @@ with st.form("form_reporte_daño"):
             
             repuestos_texto = " | ".join(repuestos_lista) if repuestos_lista else ""
             
-            # Formatear la cantidad enviada
             if len(cantidades_lista) > 1:
                 cantidad_texto = "Ver detalle"
             elif len(cantidades_lista) == 1:
@@ -203,12 +204,11 @@ with st.form("form_reporte_daño"):
             }
             
             try:
-                # Petición HTTP robusta
-                headers = {'Content-Type': 'application/json'}
+                # Envío serializado como text/plain para evadir bloqueos 401/CORS de Google
                 response = requests.post(
                     GOOGLE_SCRIPT_URL, 
-                    json=payload, 
-                    headers=headers, 
+                    data=json.dumps(payload),
+                    headers={"Content-Type": "text/plain;charset=utf-8"},
                     timeout=15
                 )
                 
@@ -216,6 +216,6 @@ with st.form("form_reporte_daño"):
                     st.success("✅ ¡Daño registrado y guardado con éxito en Google Sheets!")
                     st.session_state.form_submitted = True
                 else:
-                    st.error(f" Error de servidor ({response.status_code}). Verifica los permisos de tu Apps Script.")
+                    st.error(f"Error en el servidor de Google (Código: {response.status_code}).")
             except Exception as e:
-                st.error(f" Error de conexión: {e}")
+                st.error(f"Error de conexión: {e}")
