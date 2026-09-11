@@ -6,7 +6,7 @@ import os
 
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
-# PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT (la que termina en /exec)
+# URL DE TU GOOGLE APPS SCRIPT
 GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxXl6Ie2kL8LfpOhXsYXpVH_k8hCimmaKthYcAvHSpYy9ESVRCJL9OgQ5fltFqRH5Kn/exec"
 
 maquinas = [
@@ -45,7 +45,7 @@ def cargar_kardex():
                     dic_repuestos[codigo_val] = desc_val
                     
             return dic_repuestos
-        except Exception as e:
+        except Exception:
             return {}
     return {}
 
@@ -69,7 +69,7 @@ st.markdown("Registra fallas con limpieza automática al guardar.")
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
-# Control de estado para limpiar formulario al guardar
+# Manejo de estado
 if 'form_submitted' not in st.session_state:
     st.session_state.form_submitted = False
 
@@ -77,7 +77,6 @@ if 'num_repuestos' not in st.session_state or st.session_state.form_submitted:
     st.session_state.num_repuestos = 1
     if st.session_state.form_submitted:
         st.session_state.form_submitted = False
-        # Limpiar keys de inputs anteriores
         for key in list(st.session_state.keys()):
             if key.startswith('cod_') or key.startswith('cant_'):
                 del st.session_state[key]
@@ -121,15 +120,16 @@ with st.form("form_reporte_daño"):
         st.session_state.num_repuestos -= 1
 
     repuestos_lista = []
+    cantidades_lista = []
+    
     for i in range(st.session_state.num_repuestos):
         st.markdown(f"**Repuesto #{i+1}**")
         col_r1, col_r2 = st.columns([2, 1])
         with col_r1:
-            codigo_ingresado = st.text_input(f"Código o Ítem", key=f"cod_{i}")
+            codigo_ingresado = st.text_input(f"Código o Ítem #{i+1}", key=f"cod_{i}")
         with col_r2:
-            cant = st.text_input(f"Cantidad", value="1", key=f"cant_{i}")
+            cant = st.text_input(f"Cantidad #{i+1}", value="1", key=f"cant_{i}")
         
-        desc_encontrada = ""
         if codigo_ingresado.strip():
             codigo_exacto = codigo_ingresado.strip()
             if codigo_exacto in diccionario_repuestos:
@@ -140,14 +140,15 @@ with st.form("form_reporte_daño"):
             
             st.info(f"📄 **Descripción:** {desc_encontrada}")
             repuestos_lista.append(f"[{codigo_exacto}] {desc_encontrada} (Cant: {cant})")
+            cantidades_lista.append(cant)
         
         st.markdown("---")
 
     enviar = st.form_submit_button("💾 Guardar Registro en Google Sheets")
     
     if enviar:
-        if not GOOGLE_SCRIPT_URL or GOOGLE_SCRIPT_URL == "PEGA_AQUI_TU_URL_DE_GOOGLE_APPS_SCRIPT":
-            st.error("Por favor configura la URL de Google Apps Script en el código.")
+        if not GOOGLE_SCRIPT_URL:
+            st.error("Por favor configura la URL de Google Apps Script.")
         elif not daño.strip() or not reparacion.strip():
             st.warning("Por favor completa la descripción del daño y la reparación.")
         else:
@@ -178,6 +179,14 @@ with st.form("form_reporte_daño"):
             
             repuestos_texto = " | ".join(repuestos_lista) if repuestos_lista else ""
             
+            # Formatear la cantidad enviada
+            if len(cantidades_lista) > 1:
+                cantidad_texto = "Ver detalle"
+            elif len(cantidades_lista) == 1:
+                cantidad_texto = cantidades_lista[0]
+            else:
+                cantidad_texto = ""
+
             payload = {
                 "fecha": str(fecha),
                 "maquina": maquina,
@@ -191,16 +200,23 @@ with st.form("form_reporte_daño"):
                 "tecnico3": tecnico3,
                 "quien_repara": quien_repara,
                 "repuesto": repuestos_texto,
-                "cantidad": "Ver detalle" if len(repuestos_lista) > 1 else (cant if 'cant' in locals() and repuestos_lista else "")
+                "cantidad": cantidad_texto
             }
             
             try:
-                response = requests.post(GOOGLE_SCRIPT_URL, json=payload)
+                # Petición HTTP robusta
+                headers = {'Content-Type': 'application/json'}
+                response = requests.post(
+                    GOOGLE_SCRIPT_URL, 
+                    json=payload, 
+                    headers=headers, 
+                    timeout=15
+                )
+                
                 if response.status_code == 200:
-                    st.success("¡Daño registrado y guardado con éxito en Google Sheets!")
+                    st.success("✅ ¡Daño registrado y guardado con éxito en Google Sheets!")
                     st.session_state.form_submitted = True
-                    st.rerun()
                 else:
-                    st.error("Error al conectar con Google Sheets.")
+                    st.error(f" Error de servidor ({response.status_code}). Verifica los permisos de tu Apps Script.")
             except Exception as e:
-                st.error(f"Error de conexión: {e}")
+                st.error(f" Error de conexión: {e}")
