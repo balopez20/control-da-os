@@ -76,7 +76,7 @@ with st.form(f"form_reporte_daño_{fid}"):
     maquina = st.selectbox("Máquina / Equipo", maquinas, key=f"maquina_{fid}")
     
     # Campo SIESA agregado
-    siesa = st.text_input("Número de Solicitud / Documento SIESA", key=f"siesa_{fid}")
+    siesa = st.text_input("Solicitud de siesa, key=f"siesa_{fid}")
     
     st.markdown("🕒 **Selección de Tiempos (AM / PM)**")
     col_h1, col_h2 = st.columns(2)
@@ -201,7 +201,7 @@ with st.form(f"form_reporte_daño_{fid}"):
                 if response.status_code == 200:
                     st.session_state.form_id += 1
                     st.session_state.num_repuestos = 1
-                    st.toast("✅ ¡Registro guardado y formulario limpiado con éxito!", icon="🎉")
+                    st.toast("✅ ¡Registro guardado!", icon="🎉")
                     st.rerun()
                 else:
                     st.error(f"Error en el servidor de Google (Código HTTP: {response.status_code}).")
