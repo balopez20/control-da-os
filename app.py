@@ -13,7 +13,7 @@ GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw-ev0tuia3kl6Wkdec
 maquinas = [
     "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
     "STREAM1", "STREAM2", "STREAM3", "AKRON1", "AKRON2", "JADE", "NANXING", 
-    "SKIPPER1", "SKIPPER2", "SKIPPER3", "SKIPPER4", "BHX1", "BHX2", "ROVER1", "NESTING", "VITAP"
+    "SKIPPER1", "SKIPPER2", "SKIPPER3", "SKIPPER4", "SKIPPER5", "ROVER20", "ROVER1", "ROVER2" "BHX1", "BHX2", "FTT", "NESTING", "VITAP" 
 ]
 
 tecnicos = [
@@ -193,6 +193,7 @@ with st.form("form_reporte_daño"):
                 "hora_inicio": dt_ini.strftime("%H:%M:%S"),
                 "hora_fin": dt_fin.strftime("%H:%M:%S"),
                 "tiempo_real": tiempo_real,
+                "siesa": siesa,
                 "daño": daño,
                 "reparacion": reparacion,
                 "tecnico1": tecnico1,
