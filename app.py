@@ -61,46 +61,40 @@ st.markdown("Registra fallas con limpieza automática al guardar.")
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
-# --- LIMPIEZA DE CAMPOS ANTES DE RENDERIZAR WIDGETS ---
-if 'form_submitted' in st.session_state and st.session_state.form_submitted:
-    # Eliminar todas las claves de los campos del formulario
-    for key in list(st.session_state.keys()):
-        if key.startswith('cod_') or key.startswith('cant_') or key in [
-            "daño_txt", "reparacion_txt", "input_fecha", "input_maquina", 
-            "input_h_inicio", "input_h_fin", "input_tec1", "input_tec2", "input_tec3"
-        ]:
-            del st.session_state[key]
-    st.session_state.num_repuestos = 1
-    st.session_state.form_submitted = False
-    st.success("✅ ¡Daño registrado y guardado con éxito!")
+# --- CONTADOR DE RESETEO ---
+if 'form_id' not in st.session_state:
+    st.session_state.form_id = 0
 
 if 'num_repuestos' not in st.session_state:
     st.session_state.num_repuestos = 1
 
-# --- FORMULARIO ---
-with st.form("form_reporte_daño"):
-    fecha = st.date_input("Fecha del reporte", datetime.date.today(), key="input_fecha")
-    maquina = st.selectbox("Máquina / Equipo", maquinas, key="input_maquina")
+# Generamos un prefijo único basado en form_id para forzar el reseteo de los widgets
+fid = st.session_state.form_id
+
+# --- FORMULARIO CON LLAVES DINÁMICAS ---
+with st.form(f"form_reporte_daño_{fid}"):
+    fecha = st.date_input("Fecha del reporte", datetime.date.today(), key=f"fecha_{fid}")
+    maquina = st.selectbox("Máquina / Equipo", maquinas, key=f"maquina_{fid}")
     
     st.markdown("🕒 **Selección de Tiempos (AM / PM)**")
     col_h1, col_h2 = st.columns(2)
     with col_h1:
-        str_hora_inicio = st.selectbox("Hora de Inicio del Paro", lista_horas, index=120, key="input_h_inicio")
+        str_hora_inicio = st.selectbox("Hora de Inicio del Paro", lista_horas, index=120, key=f"h_ini_{fid}")
     with col_h2:
-        str_hora_fin = st.selectbox("Hora de Finalización", lista_horas, index=126, key="input_h_fin")
+        str_hora_fin = st.selectbox("Hora de Finalización", lista_horas, index=126, key=f"h_fin_{fid}")
     
-    daño = st.text_area("Descripción del Daño / Falla", key="daño_txt")
-    reparacion = st.text_area("Acción de Reparación Realizada", key="reparacion_txt")
+    daño = st.text_area("Descripción del Daño / Falla", key=f"dano_{fid}")
+    reparacion = st.text_area("Acción de Reparación Realizada", key=f"rep_{fid}")
     
     st.markdown("---")
     st.subheader("Personal de Mantenimiento")
     col3, col4, col5 = st.columns(3)
     with col3:
-        tecnico1 = st.selectbox("Técnico 1", [""] + tecnicos, key="input_tec1")
+        tecnico1 = st.selectbox("Técnico 1", [""] + tecnicos, key=f"tec1_{fid}")
     with col4:
-        tecnico2 = st.selectbox("Técnico 2", [""] + tecnicos, key="input_tec2")
+        tecnico2 = st.selectbox("Técnico 2", [""] + tecnicos, key=f"tec2_{fid}")
     with col5:
-        tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos, key="input_tec3")
+        tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos, key=f"tec3_{fid}")
         
     st.markdown("---")
     st.subheader("📦 Repuestos y Materiales")
@@ -125,9 +119,9 @@ with st.form("form_reporte_daño"):
         st.markdown(f"**Repuesto #{i+1}**")
         col_r1, col_r2 = st.columns([2, 1])
         with col_r1:
-            codigo_ingresado = st.text_input(f"Código o Ítem #{i+1}", key=f"cod_{i}")
+            codigo_ingresado = st.text_input(f"Código o Ítem #{i+1}", key=f"cod_{i}_{fid}")
         with col_r2:
-            cant = st.text_input(f"Cantidad #{i+1}", value="1", key=f"cant_{i}")
+            cant = st.text_input(f"Cantidad #{i+1}", value="1", key=f"cant_{i}_{fid}")
         
         if codigo_ingresado.strip():
             codigo_exacto = codigo_ingresado.strip()
@@ -203,7 +197,10 @@ with st.form("form_reporte_daño"):
                 )
                 
                 if response.status_code == 200:
-                    st.session_state.form_submitted = True
+                    # Incrementamos form_id para recrear todos los widgets vacíos
+                    st.session_state.form_id += 1
+                    st.session_state.num_repuestos = 1
+                    st.toast("✅ ¡Registro guardado y formulario limpiado!", icon="🎉")
                     st.rerun()
                 else:
                     st.error(f"Error en el servidor de Google (Código HTTP: {response.status_code}).")
