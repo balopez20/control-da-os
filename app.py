@@ -28,22 +28,14 @@ def cargar_kardex():
         try:
             df = pd.read_excel(kardex_file, sheet_name="Saldo", dtype=str, engine='openpyxl')
             dic_repuestos = {}
-            
             for _, row in df.iterrows():
                 item_val = row.iloc[0].strip() if pd.notna(row.iloc[0]) else ""
                 codigo_val = row.iloc[1].strip() if pd.notna(row.iloc[1]) else ""
                 desc_val = row.iloc[2].strip() if pd.notna(row.iloc[2]) else ""
-                
-                if item_val.endswith('.0'):
-                    item_val = item_val[:-2]
-                if codigo_val.endswith('.0'):
-                    codigo_val = codigo_val[:-2]
-                
-                if item_val and item_val.lower() != 'nan' and item_val.lower() != 'item':
-                    dic_repuestos[item_val] = desc_val
-                if codigo_val and codigo_val.lower() != 'nan' and codigo_val.lower() != 'item':
-                    dic_repuestos[codigo_val] = desc_val
-                    
+                if item_val.endswith('.0'): item_val = item_val[:-2]
+                if codigo_val.endswith('.0'): codigo_val = codigo_val[:-2]
+                if item_val and item_val.lower() not in ['nan', 'item']: dic_repuestos[item_val] = desc_val
+                if codigo_val and codigo_val.lower() not in ['nan', 'item']: dic_repuestos[codigo_val] = desc_val
             return dic_repuestos
         except Exception:
             return {}
@@ -63,83 +55,52 @@ def generar_horas_am_pm():
 
 lista_horas = generar_horas_am_pm()
 
-# Función para reiniciar/limpiar todos los estados del formulario
-def limpiar_formulario():
-    st.session_state.num_repuestos = 1
-    st.session_state.daño_txt = ""
-    st.session_state.reparacion_txt = ""
-    st.session_state.siesa_txt = ""
-    st.session_state.tec1 = ""
-    st.session_state.tec2 = ""
-    st.session_state.tec3 = ""
-    
-    # Limpiar keys dinámicas de repuestos
-    for key in list(st.session_state.keys()):
-        if key.startswith('cod_') or key.startswith('cant_'):
-            del st.session_state[key]
-
-# Inicialización del session state si es la primera vez que carga
-if 'num_repuestos' not in st.session_state:
-    st.session_state.num_repuestos = 1
-
-if 'daño_txt' not in st.session_state:
-    st.session_state.daño_txt = ""
-
-if 'reparacion_txt' not in st.session_state:
-    st.session_state.reparacion_txt = ""
-
-if 'siesa_txt' not in st.session_state:
-    st.session_state.siesa_txt = ""
-
-if 'tec1' not in st.session_state:
-    st.session_state.tec1 = ""
-
-if 'tec2' not in st.session_state:
-    st.session_state.tec2 = ""
-
-if 'tec3' not in st.session_state:
-    st.session_state.tec3 = ""
-
 st.title("📱 Reporte Diario de Daños")
 st.markdown("Registra fallas con limpieza automática al guardar.")
 
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
-# Mostrar mensaje de éxito si viene de un guardado anterior exitoso
-if st.session_state.get('mensaje_exito', False):
-    st.success("✅ ¡Daño registrado y guardado con éxito en Google Sheets!")
-    st.session_state.mensaje_exito = False
+# --- LIMPIEZA DE CAMPOS ANTES DE RENDERIZAR WIDGETS ---
+if 'form_submitted' in st.session_state and st.session_state.form_submitted:
+    # Eliminar todas las claves de los campos del formulario
+    for key in list(st.session_state.keys()):
+        if key.startswith('cod_') or key.startswith('cant_') or key in [
+            "daño_txt", "reparacion_txt", "input_fecha", "input_maquina", 
+            "input_h_inicio", "input_h_fin", "input_tec1", "input_tec2", "input_tec3"
+        ]:
+            del st.session_state[key]
+    st.session_state.num_repuestos = 1
+    st.session_state.form_submitted = False
+    st.success("✅ ¡Daño registrado y guardado con éxito!")
 
+if 'num_repuestos' not in st.session_state:
+    st.session_state.num_repuestos = 1
+
+# --- FORMULARIO ---
 with st.form("form_reporte_daño"):
-    fecha = st.date_input("Fecha del reporte", datetime.date.today())
-    maquina = st.selectbox("Máquina / Equipo", maquinas)
+    fecha = st.date_input("Fecha del reporte", datetime.date.today(), key="input_fecha")
+    maquina = st.selectbox("Máquina / Equipo", maquinas, key="input_maquina")
     
     st.markdown("🕒 **Selección de Tiempos (AM / PM)**")
     col_h1, col_h2 = st.columns(2)
     with col_h1:
-        str_hora_inicio = st.selectbox("Hora de Inicio del Paro", lista_horas, index=120)
+        str_hora_inicio = st.selectbox("Hora de Inicio del Paro", lista_horas, index=120, key="input_h_inicio")
     with col_h2:
-        str_hora_fin = st.selectbox("Hora de Finalización", lista_horas, index=126)
+        str_hora_fin = st.selectbox("Hora de Finalización", lista_horas, index=126, key="input_h_fin")
     
-    siesa = st.text_input("Código SIESA / Orden", key="siesa_txt")
     daño = st.text_area("Descripción del Daño / Falla", key="daño_txt")
     reparacion = st.text_area("Acción de Reparación Realizada", key="reparacion_txt")
     
     st.markdown("---")
     st.subheader("Personal de Mantenimiento")
     col3, col4, col5 = st.columns(3)
-    
-    idx_t1 = tecnicos.index(st.session_state.tec1) + 1 if st.session_state.tec1 in tecnicos else 0
-    idx_t2 = tecnicos.index(st.session_state.tec2) + 1 if st.session_state.tec2 in tecnicos else 0
-    idx_t3 = tecnicos.index(st.session_state.tec3) + 1 if st.session_state.tec3 in tecnicos else 0
-
     with col3:
-        tecnico1 = st.selectbox("Técnico 1", [""] + tecnicos, index=idx_t1, key="tec1")
+        tecnico1 = st.selectbox("Técnico 1", [""] + tecnicos, key="input_tec1")
     with col4:
-        tecnico2 = st.selectbox("Técnico 2", [""] + tecnicos, index=idx_t2, key="tec2")
+        tecnico2 = st.selectbox("Técnico 2", [""] + tecnicos, key="input_tec2")
     with col5:
-        tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos, index=idx_t3, key="tec3")
+        tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos, key="input_tec3")
         
     st.markdown("---")
     st.subheader("📦 Repuestos y Materiales")
@@ -193,12 +154,9 @@ with st.form("form_reporte_daño"):
             def parse_am_pm(t_str, fecha_base):
                 t_partes, periodo = t_str.split(" ")
                 h_str, m_str = t_partes.split(":")
-                h = int(h_str)
-                m = int(m_str)
-                if periodo == "PM" and h != 12:
-                    h += 12
-                if periodo == "AM" and h == 12:
-                    h = 0
+                h, m = int(h_str), int(m_str)
+                if periodo == "PM" and h != 12: h += 12
+                if periodo == "AM" and h == 12: h = 0
                 return datetime.datetime.combine(fecha_base, datetime.time(h, m))
 
             dt_ini = parse_am_pm(str_hora_inicio, fecha)
@@ -214,15 +172,9 @@ with st.form("form_reporte_daño"):
             
             lista_repara = [t for t in [tecnico1, tecnico2, tecnico3] if t != ""]
             quien_repara = ", ".join(lista_repara) if lista_repara else ""
-            
             repuestos_texto = " | ".join(repuestos_lista) if repuestos_lista else ""
             
-            if len(cantidades_lista) > 1:
-                cantidad_texto = "Ver detalle"
-            elif len(cantidades_lista) == 1:
-                cantidad_texto = cantidades_lista[0]
-            else:
-                cantidad_texto = ""
+            cantidad_texto = cantidades_lista[0] if len(cantidades_lista) == 1 else ("Ver detalle" if len(cantidades_lista) > 1 else "")
 
             payload = {
                 "fecha": str(fecha),
@@ -230,7 +182,7 @@ with st.form("form_reporte_daño"):
                 "hora_inicio": dt_ini.strftime("%H:%M:%S"),
                 "hora_fin": dt_fin.strftime("%H:%M:%S"),
                 "tiempo_real": tiempo_real,
-                "siesa": siesa,
+                "siesa": "",
                 "daño": daño,
                 "reparacion": reparacion,
                 "tecnico1": tecnico1,
@@ -246,14 +198,14 @@ with st.form("form_reporte_daño"):
                     GOOGLE_SCRIPT_URL, 
                     data=json.dumps(payload),
                     headers={"Content-Type": "text/plain;charset=utf-8"},
-                    timeout=15
+                    timeout=15,
+                    allow_redirects=True
                 )
                 
                 if response.status_code == 200:
-                    limpiar_formulario()
-                    st.session_state.mensaje_exito = True
-                    st.rerun()  # Recarga la app dejando todos los inputs limpios
+                    st.session_state.form_submitted = True
+                    st.rerun()
                 else:
-                    st.error(f"Error en el servidor de Google (Código: {response.status_code}).")
+                    st.error(f"Error en el servidor de Google (Código HTTP: {response.status_code}).")
             except Exception as e:
                 st.error(f"Error de conexión: {e}")
