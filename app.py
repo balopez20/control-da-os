@@ -92,7 +92,7 @@ with st.form("form_reporte_daño"):
         str_hora_inicio = st.selectbox("Hora de Inicio del Paro", lista_horas, index=120)
     with col_h2:
         str_hora_fin = st.selectbox("Hora de Finalización", lista_horas, index=126)
-    
+    siesa = st.text_input("SIESA")
     daño = st.text_area("Descripción del Daño / Falla")
     reparacion = st.text_area("Acción de Reparación Realizada")
     
