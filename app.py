@@ -7,7 +7,6 @@ import os
 
 st.set_page_config(page_title="Reporte de Daños - Mantenimiento", page_icon="⚙️", layout="centered")
 
-# ⚠️ PEGA AQUÍ LA NUEVA URL DE TU DESPLIEGUE EN GOOGLE APPS SCRIPT ⚠️
 GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw-ev0tuia3kl6Wkdec_0Q3-CxOlRHJ2cgDuGJp9Rf94ehBDEu4X7putnQhUsu33CGmhw/exec"
 
 maquinas = [
@@ -64,23 +63,53 @@ def generar_horas_am_pm():
 
 lista_horas = generar_horas_am_pm()
 
+# Función para reiniciar/limpiar todos los estados del formulario
+def limpiar_formulario():
+    st.session_state.num_repuestos = 1
+    st.session_state.daño_txt = ""
+    st.session_state.reparacion_txt = ""
+    st.session_state.siesa_txt = ""
+    st.session_state.tec1 = ""
+    st.session_state.tec2 = ""
+    st.session_state.tec3 = ""
+    
+    # Limpiar keys dinámicas de repuestos
+    for key in list(st.session_state.keys()):
+        if key.startswith('cod_') or key.startswith('cant_'):
+            del st.session_state[key]
+
+# Inicialización del session state si es la primera vez que carga
+if 'num_repuestos' not in st.session_state:
+    st.session_state.num_repuestos = 1
+
+if 'daño_txt' not in st.session_state:
+    st.session_state.daño_txt = ""
+
+if 'reparacion_txt' not in st.session_state:
+    st.session_state.reparacion_txt = ""
+
+if 'siesa_txt' not in st.session_state:
+    st.session_state.siesa_txt = ""
+
+if 'tec1' not in st.session_state:
+    st.session_state.tec1 = ""
+
+if 'tec2' not in st.session_state:
+    st.session_state.tec2 = ""
+
+if 'tec3' not in st.session_state:
+    st.session_state.tec3 = ""
+
 st.title("📱 Reporte Diario de Daños")
 st.markdown("Registra fallas con limpieza automática al guardar.")
 
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
-# Manejo de estado para reiniciar el formulario tras enviar
-if 'form_submitted' not in st.session_state:
-    st.session_state.form_submitted = False
-
-if 'num_repuestos' not in st.session_state or st.session_state.form_submitted:
-    st.session_state.num_repuestos = 1
-    if st.session_state.form_submitted:
-        st.session_state.form_submitted = False
-        for key in list(st.session_state.keys()):
-            if key.startswith('cod_') or key.startswith('cant_'):
-                del st.session_state[key]
+# Mostrar mensaje de éxito si viene de un guardado anterior exitoso
+if st.session_state.get('mensaje_exito', False):
+    st.success("✅ ¡Daño registrado y guardado con éxito en Google Sheets!")
+    st.session_state.mensaje_exito = False
 
 with st.form("form_reporte_daño"):
     fecha = st.date_input("Fecha del reporte", datetime.date.today())
@@ -92,19 +121,25 @@ with st.form("form_reporte_daño"):
         str_hora_inicio = st.selectbox("Hora de Inicio del Paro", lista_horas, index=120)
     with col_h2:
         str_hora_fin = st.selectbox("Hora de Finalización", lista_horas, index=126)
-    siesa = st.text_input("SIESA")
-    daño = st.text_area("Descripción del Daño / Falla")
-    reparacion = st.text_area("Acción de Reparación Realizada")
+    
+    siesa = st.text_input("Código SIESA / Orden", key="siesa_txt")
+    daño = st.text_area("Descripción del Daño / Falla", key="daño_txt")
+    reparacion = st.text_area("Acción de Reparación Realizada", key="reparacion_txt")
     
     st.markdown("---")
     st.subheader("Personal de Mantenimiento")
     col3, col4, col5 = st.columns(3)
+    
+    idx_t1 = tecnicos.index(st.session_state.tec1) + 1 if st.session_state.tec1 in tecnicos else 0
+    idx_t2 = tecnicos.index(st.session_state.tec2) + 1 if st.session_state.tec2 in tecnicos else 0
+    idx_t3 = tecnicos.index(st.session_state.tec3) + 1 if st.session_state.tec3 in tecnicos else 0
+
     with col3:
-        tecnico1 = st.selectbox("Técnico 1", [""] + tecnicos)
+        tecnico1 = st.selectbox("Técnico 1", [""] + tecnicos, index=idx_t1, key="tec1")
     with col4:
-        tecnico2 = st.selectbox("Técnico 2", [""] + tecnicos)
+        tecnico2 = st.selectbox("Técnico 2", [""] + tecnicos, index=idx_t2, key="tec2")
     with col5:
-        tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos)
+        tecnico3 = st.selectbox("Técnico 3", [""] + tecnicos, index=idx_t3, key="tec3")
         
     st.markdown("---")
     st.subheader("📦 Repuestos y Materiales")
@@ -117,8 +152,10 @@ with st.form("form_reporte_daño"):
 
     if add_rep:
         st.session_state.num_repuestos += 1
+        st.rerun()
     if rem_rep and st.session_state.num_repuestos > 1:
         st.session_state.num_repuestos -= 1
+        st.rerun()
 
     repuestos_lista = []
     cantidades_lista = []
@@ -205,7 +242,6 @@ with st.form("form_reporte_daño"):
             }
             
             try:
-                # Envío serializado como text/plain para evadir bloqueos 401/CORS de Google
                 response = requests.post(
                     GOOGLE_SCRIPT_URL, 
                     data=json.dumps(payload),
@@ -214,8 +250,9 @@ with st.form("form_reporte_daño"):
                 )
                 
                 if response.status_code == 200:
-                    st.success("✅ ¡Daño registrado y guardado con éxito en Google Sheets!")
-                    st.session_state.form_submitted = True
+                    limpiar_formulario()
+                    st.session_state.mensaje_exito = True
+                    st.rerun()  # Recarga la app dejando todos los inputs limpios
                 else:
                     st.error(f"Error en el servidor de Google (Código: {response.status_code}).")
             except Exception as e:
