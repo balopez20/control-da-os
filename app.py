@@ -61,20 +61,22 @@ st.markdown("Registra fallas con limpieza automática al guardar.")
 if not diccionario_repuestos:
     st.warning("⚠️ Nota: No se pudo leer el archivo 'KARDEX MTTO.xlsx'. Asegúrate de subirlo a GitHub.")
 
-# --- CONTADOR DE RESETEO ---
+# --- CONTADOR DE RESETEO DE FORMULARIO ---
 if 'form_id' not in st.session_state:
     st.session_state.form_id = 0
 
 if 'num_repuestos' not in st.session_state:
     st.session_state.num_repuestos = 1
 
-# Generamos un prefijo único basado en form_id para forzar el reseteo de los widgets
 fid = st.session_state.form_id
 
-# --- FORMULARIO CON LLAVES DINÁMICAS ---
+# --- FORMULARIO ---
 with st.form(f"form_reporte_daño_{fid}"):
     fecha = st.date_input("Fecha del reporte", datetime.date.today(), key=f"fecha_{fid}")
     maquina = st.selectbox("Máquina / Equipo", maquinas, key=f"maquina_{fid}")
+    
+    # Campo SIESA agregado
+    siesa = st.text_input("Número de Solicitud / Documento SIESA", key=f"siesa_{fid}")
     
     st.markdown("🕒 **Selección de Tiempos (AM / PM)**")
     col_h1, col_h2 = st.columns(2)
@@ -176,7 +178,7 @@ with st.form(f"form_reporte_daño_{fid}"):
                 "hora_inicio": dt_ini.strftime("%H:%M:%S"),
                 "hora_fin": dt_fin.strftime("%H:%M:%S"),
                 "tiempo_real": tiempo_real,
-                "siesa": "",
+                "siesa": siesa,
                 "daño": daño,
                 "reparacion": reparacion,
                 "tecnico1": tecnico1,
@@ -197,10 +199,9 @@ with st.form(f"form_reporte_daño_{fid}"):
                 )
                 
                 if response.status_code == 200:
-                    # Incrementamos form_id para recrear todos los widgets vacíos
                     st.session_state.form_id += 1
                     st.session_state.num_repuestos = 1
-                    st.toast("✅ ¡Registro guardado y formulario limpiado!", icon="🎉")
+                    st.toast("✅ ¡Registro guardado y formulario limpiado con éxito!", icon="🎉")
                     st.rerun()
                 else:
                     st.error(f"Error en el servidor de Google (Código HTTP: {response.status_code}).")
