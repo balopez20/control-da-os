@@ -76,7 +76,7 @@ with st.form(f"form_reporte_daño_{fid}"):
     maquina = st.selectbox("Máquina / Equipo", maquinas, key=f"maquina_{fid}")
     
     # Campo SIESA agregado
-    siesa = st.text_input("Solicitud de siesa, key=f"siesa_{fid}")
+    siesa = st.text_input("Solicitud de siesa", key=f"siesa_{fid}")
     
     st.markdown("🕒 **Selección de Tiempos (AM / PM)**")
     col_h1, col_h2 = st.columns(2)
