@@ -10,7 +10,7 @@ st.set_page_config(page_title="Reporte de Da√±os - Mantenimiento", page_icon="‚ö
 GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw-ev0tuia3kl6Wkdec_0Q3-CxOlRHJ2cgDuGJp9Rf94ehBDEu4X7putnQhUsu33CGmhw/exec"
 
 maquinas = [
-    "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAGKL310", 
+    "WNT", "SELCO2", "SELCO3", "SELCO4", "HOMAG400", "HOMAG500", "HOMAG600","HOMAGKL310", 
     "STREAM1", "STREAM2", "STREAM3", "AKRON1", "AKRON2", "JADE", "NANXING", 
     "SKIPPER1", "SKIPPER2", "SKIPPER3", "SKIPPER4", "SKIPPER5", "ROVER20", "ROVER1", "ROVER2", "BHX1", "BHX2", "FTT", "NESTING", "VITAP" 
 ]
